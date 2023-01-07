@@ -1,8 +1,8 @@
 library flutter_press;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_press/admin_app.dart';
-import 'package:flutter_press/admin_post.dart';
+import 'package:flutter_press/admin_post_list.dart';
+import 'package:flutter_press/admin_post_new.dart';
 import 'package:flutter_press/admin_settings.dart';
 import 'package:flutter_press/services/navigator.dart';
 
@@ -18,17 +18,49 @@ class _FlutterPressNavRootState extends State<FlutterPressNavRoot> {
   bool initialized = false;
   @override
   void initState() {
+    print("FlutterPressNavRoot.initState()");
     super.initState();
-    NavigationService.instance.registerRoutes({
-      '/': () => const AdminApp(),
-      'Post': () => const AdminPost(),
-      'Settings': () => const AdminSettings(),
-    });
+
     NavigationService.instance.onChange((route) {
       setState(() {
         currentWidget = route;
       });
     });
+    NavigationService.instance.registerRoutes(routes: {
+      'Post': () => const AdminPostList(),
+      'All Posts': () => const AdminPostList(),
+      'Add New': () => const AdminPostNew(),
+      'Settings': () => const AdminSettings(),
+    }, initialRoute: 'All Posts');
+    // final routes = [RouteItem(
+    //   icon: Icons.push_pin_outlined,
+    //   name: 'Post',
+    //   builder: () => const AdminPost(),
+    // ),
+    // RouteItem(
+    // icon: Icons.copy_all,
+    // name: 'Pages',
+    //   builder: () => const AdminPost(),
+    //
+    // ),
+    // RouteItem(
+    // icon: Icons.settings,
+    // name: 'Settings',
+    //   builder: () => const AdminPost(),
+    //
+    // ),
+    // RouteItem(
+    // icon: Icons.format_paint,
+    // name: 'Admin',
+    //   builder: () => const AdminPost(),
+    //
+    // ),
+    // RouteItem(
+    // icon: Icons.arrow_circle_left,
+    // name: "Collapse menu",
+    //   builder: () => const AdminPost(),
+    //
+    // ),];
     // setState(() {
     currentWidget = NavigationService.instance.currentRoute;
     initialized = true;

@@ -4,9 +4,10 @@ import 'package:flutter_press/constants.dart';
 
 class AdminLayout extends StatefulWidget {
   final Widget child;
-  final String title;
-  const AdminLayout({Key? key, required this.child, required this.title})
-      : super(key: key);
+  const AdminLayout({
+    Key? key,
+    required this.child,
+  }) : super(key: key);
 
   @override
   State<AdminLayout> createState() => _AdminLayoutState();
@@ -39,7 +40,7 @@ class _AdminLayoutState extends State<AdminLayout> {
                 ),
                 Expanded(
                   child: Container(
-                    child: Center(child: widget.child),
+                    child: widget.child,
                     color: Colors.black26,
                   ),
                 ),

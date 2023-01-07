@@ -27,6 +27,12 @@ class AdminNavigatorAppState extends State<AdminNavigatorApp> {
                   NavigationItem(
                     icon: Icons.push_pin_outlined,
                     text: 'Post',
+                    children: [
+                      "All Posts",
+                      "Add New",
+                      "Categories",
+                      "Tags",
+                    ],
                   ),
                   NavigationItem(
                     icon: Icons.copy_all,

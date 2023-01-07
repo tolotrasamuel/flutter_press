@@ -24,7 +24,9 @@ class _FlutterPressAppState extends State<FlutterPressApp> {
       // routes: {
       //   '/Admin': (context) => const AdminPost(),
       // },
-      home: FlutterPressNavRoot(),
+      home: Container(
+        child: FlutterPressNavRoot(),
+      ),
     );
   }
 }

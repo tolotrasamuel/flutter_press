@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_press/admin_post.dart';
+import 'package:flutter_press/admin_post_list.dart';
 import 'package:flutter_press/admin_settings.dart';
 
 class AdminApp extends StatefulWidget {
@@ -14,7 +14,7 @@ class AdminApp extends StatefulWidget {
 class AdminAppState extends State<AdminApp> {
   @override
   Widget build(BuildContext context) {
-    return AdminPost();
+    return AdminPostList();
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Admin App',
@@ -24,10 +24,10 @@ class AdminAppState extends State<AdminApp> {
         brightness: Brightness.dark,
       ),
       routes: {
-        '/Post': (context) => AdminPost(),
+        '/Post': (context) => AdminPostList(),
         '/Settings': (context) => AdminSettings(),
       },
-      home: AdminPost(),
+      home: AdminPostList(),
       // initialRoute: "/Post",
       // home: Scaffold(
       //   body: Center(

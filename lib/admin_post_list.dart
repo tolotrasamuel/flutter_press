@@ -5,14 +5,14 @@ import 'package:flutter_press/widgets/hover_builder.dart';
 import 'package:flutter_press/widgets/outlined_button.dart';
 import 'package:flutter_press/widgets/post_category_link.dart';
 
-class AdminPost extends StatefulWidget {
-  const AdminPost({Key? key}) : super(key: key);
+class AdminPostList extends StatefulWidget {
+  const AdminPostList({Key? key}) : super(key: key);
 
   @override
-  State<AdminPost> createState() => AdminPostState();
+  State<AdminPostList> createState() => AdminPostListState();
 }
 
-class AdminPostState extends State<AdminPost> {
+class AdminPostListState extends State<AdminPostList> {
   @override
   void initState() {
     // TODO: implement initState
@@ -22,7 +22,6 @@ class AdminPostState extends State<AdminPost> {
   @override
   Widget build(BuildContext context) {
     return AdminLayout(
-      title: 'Post',
       child: Container(
         // constraints: BoxConstraints(maxWidth: 1040),
         padding: const EdgeInsets.all(22),

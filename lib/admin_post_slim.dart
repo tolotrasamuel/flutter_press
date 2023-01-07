@@ -18,7 +18,6 @@ class AdminPostState extends State<AdminPost> {
   @override
   Widget build(BuildContext context) {
     return AdminLayout(
-      title: 'Post',
       child: Container(
         constraints: BoxConstraints(maxWidth: 1040),
         padding: const EdgeInsets.all(58),

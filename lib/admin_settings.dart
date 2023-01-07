@@ -12,7 +12,6 @@ class AdminSettingsState extends State<AdminSettings> {
   @override
   Widget build(BuildContext context) {
     return AdminLayout(
-      title: 'Settings',
       child: Text('Settings'),
     );
   }

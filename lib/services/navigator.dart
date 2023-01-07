@@ -33,9 +33,13 @@ class NavigationService {
     print('Route: $fullRoute');
   }
 
-  void registerRoutes(Map<String, StatefulWidget Function()> routes) {
+  void registerRoutes({
+    required Map<String, StatefulWidget Function()> routes,
+    required String initialRoute,
+  }) {
     _routes = routes;
-    _routeHistory.add(RouteItem(name: '/', widget: routes['/']!()));
+    goTo(initialRoute);
+    // _routeHistory.add(RouteItem(name: '/', widget: routes['/']!()));
   }
 
   late Null Function(Widget route) onNavigate;
