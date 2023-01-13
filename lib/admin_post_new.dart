@@ -1,9 +1,16 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_press/admin_layout.dart';
+import 'package:flutter_press/model/new_post_payload.dart';
+import 'package:flutter_press/model/post.dart';
+import 'package:flutter_press/model/post_status.dart';
+import 'package:flutter_press/services/api_service.dart';
+import 'package:flutter_press/services/navigator.dart';
 import 'package:flutter_press/widgets/filled_button.dart';
+import 'package:flutter_press/widgets/link_text.dart';
 import 'package:flutter_press/widgets/outlined_button.dart';
 import 'package:flutter_press/widgets/publish_list_item.dart';
 import 'package:flutter_quill/flutter_quill.dart' hide Text;
@@ -12,7 +19,77 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:tuple/tuple.dart';
 
+class AdminPostNewController {
+  late AdminPostNewState view;
+  QuillController editorController = QuillController.basic();
+  final ApiService apiService = ApiService();
+
+  final titleController = TextEditingController();
+
+  bool isLoading = false;
+
+  Post? post;
+
+  void attach(AdminPostNewState adminPostNewState) {
+    view = adminPostNewState;
+  }
+
+  void init() {
+    final param = NavigationService.instance.currentRouteItem.queryParamMap;
+    final postId = param[AdminPostNew.paramPostId];
+    print("init postId: $postId");
+    if (postId == null) {
+      return;
+    }
+    loadPost(postId);
+  }
+
+  Future<void> onPublish() async {
+    print("${editorController.document.toDelta()}");
+    final newPost = NewPostPayload(
+      title: titleController.text,
+      content: json.encode(editorController.document.toDelta().toJson()),
+      status: PostStatus.publish,
+    );
+    isLoading = true;
+    view.applyState();
+    late Post postSaved;
+    final post = this.post;
+    if (post == null) {
+      postSaved = await apiService.savePost(newPost).catchError((error) {
+        print(error);
+        throw error;
+      });
+    } else {
+      final editedPost = post.copyWith(
+        title: newPost.title,
+        content: newPost.content,
+      );
+      postSaved = await apiService.editPost(editedPost).catchError((error) {
+        print(error);
+        throw error;
+      });
+    }
+    this.post = postSaved;
+    isLoading = false;
+    view.applyState();
+  }
+
+  Future<void> loadPost(String postId) async {
+    final post = await ApiService().readPost(postId);
+    print(post);
+    this.post = post;
+    titleController.text = post.title;
+    editorController = QuillController(
+      document: Document.fromJson(json.decode(post.content)),
+      selection: TextSelection.collapsed(offset: 0),
+    );
+    view.applyState();
+  }
+}
+
 class AdminPostNew extends StatefulWidget {
+  static const String paramPostId = 'post';
   const AdminPostNew({Key? key}) : super(key: key);
 
   @override
@@ -20,12 +97,18 @@ class AdminPostNew extends StatefulWidget {
 }
 
 class AdminPostNewState extends State<AdminPostNew> {
+  final controller = AdminPostNewController();
   @override
   void initState() {
     super.initState();
+    controller.attach(this);
+
+    //  post frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.init();
+    });
   }
 
-  QuillController _controller = QuillController.basic();
   final scrollController = ScrollController();
   @override
   Widget build(BuildContext context) {
@@ -43,7 +126,7 @@ class AdminPostNewState extends State<AdminPostNew> {
               Row(
                 children: [
                   Text(
-                    'Add New Post',
+                    controller.post == null ? 'Add New Post' : 'Edit Post',
                     style: TextStyle(
                       fontSize: 24,
                       fontFamily: 'Recoleta',
@@ -64,6 +147,7 @@ class AdminPostNewState extends State<AdminPostNew> {
                         Container(
                           color: Colors.black,
                           child: TextField(
+                            controller: controller.titleController,
                             style: TextStyle(
                                 fontSize: 22, fontWeight: FontWeight.w300),
                             decoration: InputDecoration(
@@ -121,7 +205,7 @@ class AdminPostNewState extends State<AdminPostNew> {
                                     toolbarIconAlignment: WrapAlignment.start,
                                     multiRowsDisplay: true,
                                     showIndent: true,
-                                    controller: _controller,
+                                    controller: controller.editorController,
                                     showAlignmentButtons: true,
                                   ),
                                 ),
@@ -143,7 +227,7 @@ class AdminPostNewState extends State<AdminPostNew> {
                                         // ),
                                       ),
                                       child: QuillEditor(
-                                        controller: _controller,
+                                        controller: controller.editorController,
                                         scrollController: scrollController,
                                         scrollable: false,
                                         focusNode: FocusNode(),
@@ -323,15 +407,7 @@ class AdminPostNewState extends State<AdminPostNew> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(
-                                          "Move to Trash",
-                                          style: TextStyle(
-                                            color: Colors.red[400],
-                                            fontSize: 13,
-                                            decoration:
-                                                TextDecoration.underline,
-                                          ),
-                                        ),
+                                        LinkTextRed("Move to Trash"),
                                       ],
                                     ),
                                   ),
@@ -339,12 +415,14 @@ class AdminPostNewState extends State<AdminPostNew> {
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
                                       FlpFilledButton(
-                                        onPressed: () {},
-                                        isLoading: false,
+                                        onPressed: controller.onPublish,
+                                        isLoading: controller.isLoading,
                                         padding: EdgeInsets.symmetric(
                                           vertical: 2,
                                         ),
-                                        text: 'Publish',
+                                        text: controller.post == null
+                                            ? 'Publish'
+                                            : 'Update',
                                       ),
                                     ],
                                   ),
@@ -372,5 +450,9 @@ class AdminPostNewState extends State<AdminPostNew> {
             '${appDocDir.path}/${basename('${DateTime.now().millisecondsSinceEpoch}.png')}')
         .writeAsBytes(imageBytes, flush: true);
     return file.path.toString();
+  }
+
+  void applyState() {
+    setState(() {});
   }
 }

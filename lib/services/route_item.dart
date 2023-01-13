@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 class RouteItem {
+  final Map<String, String> queryParamMap;
+
   const RouteItem({
     required this.name,
     required this.widget,
+    required this.queryParamMap,
   });
   final String name;
   final Widget widget;

@@ -5,16 +5,18 @@ import 'package:flutter_press/widgets/link_text.dart';
 class PostCategoryLink extends StatelessWidget {
   final String text;
   final String description;
-  const PostCategoryLink(
-      {Key? key, required this.text, required this.description})
-      : super(key: key);
+  const PostCategoryLink({
+    Key? key,
+    required this.text,
+    required this.description,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return HoverBuilder(builder: (isHovering) {
       return Row(
         children: [
-          LinkText(
+          LinkTextBlue(
             text,
             isHovered: isHovering,
             fontWeight: FontWeight.w400,

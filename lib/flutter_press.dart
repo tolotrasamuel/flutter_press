@@ -2,6 +2,8 @@ library flutter_press;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_press/flutter_press_nav_root.dart';
+import 'package:flutter_press/utils/extensions.dart';
+import 'package:intl/intl.dart';
 
 class FlutterPressApp extends StatefulWidget {
   const FlutterPressApp({Key? key}) : super(key: key);
@@ -11,6 +13,13 @@ class FlutterPressApp extends StatefulWidget {
 }
 
 class _FlutterPressAppState extends State<FlutterPressApp> {
+  @override
+  void initState() {
+    DateFormat f = DateFormat("yyyy/MM/dd 'at' hh:mm a");
+    DateFormatter.f = f;
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

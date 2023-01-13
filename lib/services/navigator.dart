@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter_press/services/route_item.dart';
 
@@ -22,12 +23,23 @@ class NavigationService {
   Widget get currentRoute => currentRouteItem.widget;
   RouteItem get currentRouteItem => _routeHistory.last;
   void goTo(String text) {
-    final widgetBuilder = _routes[text];
-    if (widgetBuilder == null) {
+    final route =
+        _routes.keys.firstWhereOrNull((pattern) => text.startsWith(pattern));
+    if (route == null) {
       throw Exception("Route not found: $text");
     }
+    final widgetBuilder = _routes[route]!;
+    final queryParamMap = getQueryParamMap(text, route);
+
+    print("queryParamMap: $queryParamMap");
+
     final widget = widgetBuilder();
-    _routeHistory.add(RouteItem(name: text, widget: widget));
+    print("after widgetBuilder");
+    _routeHistory.add(RouteItem(
+      name: text,
+      widget: widget,
+      queryParamMap: queryParamMap,
+    ));
     onNavigate(widget);
     final fullRoute = _routeHistory.map((e) => e.name).join('/');
     print('Route: $fullRoute');
@@ -52,5 +64,28 @@ class NavigationService {
       _routeHistory.removeLast();
       onNavigate(_routeHistory.last.widget);
     }
+  }
+
+  Map<String, String> getQueryParamMap(String fullPath, String routeName) {
+    final queryParam = fullPath.substring(routeName.length);
+    final queryParamElements = queryParam.split("/");
+    print("fullPath: $fullPath, routeName $routeName");
+    if (queryParamElements.isEmpty) {
+      return {};
+    }
+    if (queryParamElements.first != "") {
+      throw Exception("Invalid query param: $queryParam");
+    }
+    queryParamElements.removeAt(0);
+    if (queryParamElements.length % 2 != 0) {
+      throw Exception("Invalid query param: $queryParam");
+    }
+    final queryParamMap = <String, String>{};
+    for (var i = 0; i < queryParamElements.length; i += 2) {
+      final key = queryParamElements[i];
+      final value = queryParamElements[i + 1];
+      queryParamMap[key] = value;
+    }
+    return queryParamMap;
   }
 }

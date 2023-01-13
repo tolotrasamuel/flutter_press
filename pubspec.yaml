@@ -13,10 +13,15 @@ dependencies:
   flutter_quill: ^6.1.12
   flutter_quill_extensions: ^0.1.0
   path_provider: ^2.0.11
+  freezed_annotation: ^2.2.0
+
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  json_serializable: ^6.5.4
+  build_runner: ^2.3.2
+  freezed: ^2.2.1
   flutter_lints: ^2.0.0
 
 # For information on the generic Dart part of this file, see the

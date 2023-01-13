@@ -1,0 +1,18 @@
+targets:
+  $default:
+    builders:
+      freezed:
+        enabled: True
+        generate_for:
+          - lib/model/**
+
+
+      json_serializable:
+        enabled: True
+        generate_for:
+          - lib/model/**
+        options:
+          any_map: true
+          explicit_to_json: True
+
+
