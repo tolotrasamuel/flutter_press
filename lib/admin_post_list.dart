@@ -1,9 +1,15 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_press/admin_layout.dart';
 import 'package:flutter_press/admin_post_new.dart';
 import 'package:flutter_press/model/post.dart';
+import 'package:flutter_press/model/post_count.dart';
+import 'package:flutter_press/model/post_status.dart';
+import 'package:flutter_press/model/post_status_payload.dart';
 import 'package:flutter_press/services/api_service.dart';
 import 'package:flutter_press/services/navigator.dart';
+import 'package:flutter_press/view_model/action_row.dart';
+import 'package:flutter_press/view_model/post_count_item.dart';
 import 'package:flutter_press/widgets/dropdown.dart';
 import 'package:flutter_press/widgets/hover_builder.dart';
 import 'package:flutter_press/widgets/link_text.dart';
@@ -12,22 +18,52 @@ import 'package:flutter_press/widgets/post_category_link.dart';
 
 class AdminPostListController {
   late AdminPostListState view;
+  PostCount postsCount = const PostCount();
+  final apiService = ApiService();
+  final postViewModels = [
+    PostCountItem(
+      text: "All",
+      alwaysShow: true,
+      status: null,
+    ),
+    PostCountItem(
+      text: "Published",
+      status: PostStatus.published,
+    ),
+    PostCountItem(
+      text: "Scheduled",
+      status: PostStatus.scheduled,
+    ),
+    PostCountItem(
+      text: "Drafts",
+      status: PostStatus.draft,
+    ),
+    PostCountItem(
+      text: "Pending",
+      status: PostStatus.pending,
+    ),
+    PostCountItem(
+      text: "Private",
+      status: PostStatus.private,
+    ),
+    PostCountItem(
+      text: "Trash",
+      status: PostStatus.trash,
+    ),
+    // scheduled
+  ];
 
   List<Post> posts = [];
+
+  PostStatus? postStatusFilter;
 
   void attach(AdminPostListState adminPostListState) {
     view = adminPostListState;
   }
 
-  Future<void> init() async {
-    final apiService = ApiService();
-
-    final posts = await apiService.readPosts().catchError((e) {
-      print('Error $e');
-      showDialog(context: view.context, builder: (context) => Text('Error $e'));
-    });
-    this.posts = posts;
-    view.applyState();
+  Future<void> postInit() async {
+    readPostStatusFilter();
+    fetchPostsCountAndStatus();
   }
 
   void onPostTap(Post post) {
@@ -35,9 +71,122 @@ class AdminPostListController {
         .goTo("Add New/${AdminPostNew.paramPostId}/${post.id}");
     // setState(() {});
   }
+
+  Future<void> fetchPosts() async {
+    final posts = await apiService
+        .readAllPosts(postStatus: postStatusFilter)
+        .catchError((e) {
+      print('Error $e');
+      showDialog(context: view.context, builder: (context) => Text('Error $e'));
+    });
+    this.posts = posts;
+    view.applyState();
+  }
+
+  Future<void> fetchPostCounts() async {
+    final postsCount = await apiService.fetchPostsCount().catchError((e) {
+      print('Error $e');
+      showDialog(context: view.context, builder: (context) => Text('Error $e'));
+    });
+    this.postsCount = postsCount;
+    for (final postCountItem in postViewModels) {
+      switch (postCountItem.status) {
+        case PostStatus.published:
+          postCountItem.count = postsCount.published;
+          break;
+        case PostStatus.scheduled:
+          postCountItem.count = postsCount.scheduled;
+          break;
+        case PostStatus.draft:
+          postCountItem.count = postsCount.draft;
+          break;
+        case PostStatus.pending:
+          postCountItem.count = postsCount.pending;
+          break;
+        case PostStatus.private:
+          postCountItem.count = postsCount.private;
+          break;
+        case PostStatus.trash:
+          postCountItem.count = postsCount.trash;
+          break;
+        case null:
+          postCountItem.count = postsCount.all;
+          break;
+      }
+    }
+    view.applyState();
+  }
+
+  void readPostStatusFilter() {
+    final param = NavigationService.instance.currentRouteItem.queryParamMap;
+    final postStatus = param[AdminPostList.postStatus];
+    print("init postId: $postStatus");
+    if (postStatus == null) {
+      return;
+    }
+    this.postStatusFilter = PostStatus.values.asNameMap()[postStatus];
+    view.applyState();
+  }
+
+  void init() {}
+
+  void onPostCountTap(PostStatus? status) {
+    this.postStatusFilter = status;
+    view.applyState();
+    fetchPosts();
+  }
+
+  void onEditTap(Post post) {}
+
+  void onQuickEditTap(Post post) {}
+
+  void onTrashTap(Post post) async {
+    final payload = PostStatusPayload(
+      id: post.id,
+      status: PostStatus.trash,
+    );
+    await apiService.updatePostStatus(payload);
+    fetchPostsCountAndStatus();
+  }
+
+  void onViewTap(Post post) {}
+
+  void onCopy(Post post) {}
+
+  void onPreviewTap(Post post) {}
+
+  void onRestoreTap(Post post) async {
+    final updateStatusPayload = PostStatusPayload(
+      status: PostStatus.draft,
+      id: post.id,
+    );
+    await apiService.updatePostStatus(updateStatusPayload).catchError((e) {
+      print('Error $e');
+      showDialog(context: view.context, builder: (context) => Text('Error $e'));
+    });
+    fetchPostsCountAndStatus();
+  }
+
+  Future<void> onDeletePermanentlyTap(Post post) async {
+    await ApiService().deletePost(post.id).catchError((e) {
+      print('Error $e');
+      showDialog(context: view.context, builder: (context) => Text('Error $e'));
+    });
+    fetchPostsCountAndStatus();
+  }
+
+  void onAddNewTap() {
+    NavigationService.instance.goTo("Add New");
+  }
+
+  void fetchPostsCountAndStatus() {
+    fetchPosts();
+    fetchPostCounts();
+  }
 }
 
 class AdminPostList extends StatefulWidget {
+  static const String postStatus = 'status';
   const AdminPostList({Key? key}) : super(key: key);
 
   @override
@@ -51,9 +200,9 @@ class AdminPostListState extends State<AdminPostList> {
     super.initState();
     controller.attach(this);
     // add post frame
-
+    controller.init();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.init();
+      controller.postInit();
     });
   }
 
@@ -90,7 +239,9 @@ class AdminPostListState extends State<AdminPostList> {
                             backgroundColor: hovering ? Colors.blue : null,
                             side: BorderSide(color: Colors.blue),
                           ),
-                          onPressed: () {},
+                          onPressed: () {
+                            controller.onAddNewTap();
+                          },
                           child: Text('Add New',
                               style: TextStyle(
                                 fontSize: 13,
@@ -108,50 +259,7 @@ class AdminPostListState extends State<AdminPostList> {
               Row(
                 children: [
                   Row(
-                    children: [
-                      PostCategoryLink(
-                        text: 'All',
-                        description: "(2)",
-                      ),
-                      SizedBox(
-                        width: 4,
-                      ),
-                      Text(
-                        "|",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w100,
-                          fontFamily: 'System',
-                        ),
-                      ),
-                      SizedBox(
-                        width: 4,
-                      ),
-                      PostCategoryLink(
-                        text: 'Published',
-                        description: "(2)",
-                      ),
-                      SizedBox(
-                        width: 4,
-                      ),
-                      Text(
-                        "|",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w100,
-                          fontFamily: 'System',
-                        ),
-                      ),
-                      SizedBox(
-                        width: 4,
-                      ),
-                      PostCategoryLink(
-                        text: 'Draft',
-                        description: "(0)",
-                      ),
-                    ],
+                    children: _buildAllPostsCount(),
                   ),
                   Expanded(child: Container()),
                   Row(
@@ -270,6 +378,28 @@ class AdminPostListState extends State<AdminPostList> {
                         authorWidth: authorWidth,
                       ),
                       // table body
+                      if (controller.posts.isEmpty)
+                        Row(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Expanded(
+                              child: Container(
+                                // height: 100,
+                                padding: EdgeInsets.all(12),
+                                color: Color(0xff1F1F1F),
+                                child: Text(
+                                  "No posts found${_statusNoPostText()}.",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w200,
+                                    fontFamily: 'System',
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ...List<Widget>.generate(controller.posts.length,
                           (index) {
                         final post = controller.posts[index];
@@ -299,40 +429,85 @@ class AdminPostListState extends State<AdminPostList> {
                                   Expanded(
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                          vertical: 8.0),
+                                        vertical: 8.0,
+                                      ),
                                       child: Row(
                                         children: [
                                           Expanded(
-                                            child: Row(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                SizedBox(
-                                                  width: 50,
-                                                  height: 50,
-                                                  child: Placeholder(),
-                                                ),
-                                                Container(
-                                                  padding:
-                                                      EdgeInsets.only(left: 8),
-                                                  child: InkWell(
-                                                    onTap: () {
-                                                      controller
-                                                          .onPostTap(post);
-                                                    },
-                                                    child: LinkTextBlue(
-                                                      post.title,
-                                                      // style: TextStyle(
-                                                      //   color: Colors.white,
-                                                      //   fontSize: 13,
-                                                      //   fontWeight: FontWeight.w200,
-                                                      //   fontFamily: 'System',
-                                                      // ),
+                                            child: HoverBuilder(
+                                                builder: (isHovered) {
+                                              return Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  SizedBox(
+                                                    width: 50,
+                                                    height: 50,
+                                                    child: Placeholder(),
+                                                  ),
+                                                  Container(
+                                                    padding: EdgeInsets.only(
+                                                        left: 8),
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Row(
+                                                          children: [
+                                                            LinkTextBlue(
+                                                              fontSize: 14,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              onTap: () {
+                                                                controller
+                                                                    .onPostTap(
+                                                                        post);
+                                                              },
+                                                              post.title,
+                                                              // style: TextStyle(
+                                                              //   color: Colors.white,
+                                                              //   fontSize: 13,
+                                                              //   fontWeight: FontWeight.w200,
+                                                              //   fontFamily: 'System',
+                                                              // ),
+                                                            ),
+                                                            SizedBox(
+                                                              width: 4,
+                                                            ),
+                                                            if ([
+                                                              PostStatus
+                                                                  .scheduled,
+                                                              null
+                                                            ].contains(controller
+                                                                .postStatusFilter) && post.status != PostStatus.published)
+                                                              Text(
+                                                                "— ${_getPostStatusInlineText(post)}",
+                                                                style: TextStyle(
+                                                                    fontSize:
+                                                                        14,
+                                                                    fontFamily:
+                                                                        'Recoleta',
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                    color: Color(
+                                                                        0xff50575e)),
+                                                              ),
+                                                          ],
+                                                        ),
+                                                        SizedBox(
+                                                          height: 8,
+                                                        ),
+                                                        if (isHovered)
+                                                          _buildRowAction(post),
+                                                      ],
                                                     ),
                                                   ),
-                                                ),
-                                              ],
-                                            ),
+                                                ],
+                                              );
+                                            }),
                                           ),
                                           Container(
                                             width: authorWidth,
@@ -378,7 +553,8 @@ class AdminPostListState extends State<AdminPostList> {
                                                       color: Color(0xff787C81),
                                                       borderRadius:
                                                           BorderRadius.circular(
-                                                              4),
+                                                        4,
+                                                      ),
                                                     ),
                                                     child: Padding(
                                                       padding: const EdgeInsets
@@ -428,6 +604,7 @@ class AdminPostListState extends State<AdminPostList> {
                         fixedWidth: fixedWidth,
                         dateWidth: dateWidth,
                         authorWidth: authorWidth,
+                        isBottom: true,
                       ),
                     ],
                   );
@@ -466,6 +643,40 @@ class AdminPostListState extends State<AdminPostList> {
     );
   }
 
+  List<Widget> _buildPostCount(PostCountItem postCountItem,
+      [bool isLast = false]) {
+    final text = postCountItem.text;
+    final count = postCountItem.count;
+
+    return [
+      PostCategoryLink(
+        text: text,
+        isActive: controller.postStatusFilter == postCountItem.status,
+        onTap: () {
+          controller.onPostCountTap(postCountItem.status);
+        },
+        description: "($count)",
+      ),
+      if (!isLast) ...[
+        SizedBox(
+          width: 4,
+        ),
+        Text(
+          "|",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w100,
+            fontFamily: 'System',
+          ),
+        ),
+        SizedBox(
+          width: 4,
+        ),
+      ]
+    ];
+  }
+
   void applyState() {
     setState(() {});
   }
@@ -474,9 +685,24 @@ class AdminPostListState extends State<AdminPostList> {
     required double fixedWidth,
     required double dateWidth,
     required double authorWidth,
+    bool isBottom = false,
   }) {
     return Container(
       height: 40,
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: (!isBottom)
+              ? BorderSide(
+                  color: Color(0xff76797E),
+                )
+              : BorderSide.none,
+          top: (isBottom)
+              ? BorderSide(
+                  color: Color(0xff76797E),
+                )
+              : BorderSide.none,
+        ),
+      ),
       child: Row(
         children: [
           Container(
@@ -571,5 +797,165 @@ class AdminPostListState extends State<AdminPostList> {
         ],
       ),
     );
+  }
+
+  List<Widget> _buildAllPostsCount() {
+    final postsMap = <String, int>{};
+    final postViewModels = controller.postViewModels;
+    List<Widget> list = [];
+
+    final postCountsShowing =
+        postViewModels.where((e) => e.count > 0 || e.alwaysShow).toList();
+    for (int i = 0; i < postCountsShowing.length; i++) {
+      final item = postCountsShowing[i];
+      if (!item.alwaysShow && item.count == 0) {
+        continue;
+      }
+      postsMap[item.text] = item.count;
+      final isLast = i == postCountsShowing.length - 1;
+      list.addAll(_buildPostCount(item, isLast));
+    }
+    return list;
+  }
+
+  Widget _buildRowAction(Post post) {
+    final copy = RowAction(
+      text: "Copy",
+      onTap: () {
+        controller.onCopy(post);
+      },
+    );
+    final view = RowAction(
+      text: "View",
+      onTap: () {
+        controller.onViewTap(post);
+      },
+    );
+    final preview = RowAction(
+      text: "Preview",
+      onTap: () {
+        controller.onPreviewTap(post);
+      },
+    );
+    final actions = [
+      RowAction(
+        text: "Edit",
+        onTap: () {
+          controller.onEditTap(post);
+        },
+      ),
+      RowAction(
+        text: "Quick Edit",
+        onTap: () {
+          controller.onQuickEditTap(post);
+        },
+      ),
+      copy,
+      RowAction(
+        text: "Trash",
+        isDestructive: true,
+        onTap: () {
+          controller.onTrashTap(post);
+        },
+      ),
+    ];
+    if ([
+      PostStatus.published,
+      PostStatus.private,
+    ].contains(post.status)) {
+      actions.add(view);
+    }
+    if ([
+      PostStatus.draft,
+      PostStatus.scheduled,
+      PostStatus.pending,
+    ].contains(post.status)) {
+      actions.add(preview);
+    }
+
+    if (post.status == PostStatus.trash) {
+      actions.clear();
+      actions.add(copy);
+      actions.add(RowAction(
+        text: "Restore",
+        onTap: () {
+          controller.onRestoreTap(post);
+        },
+      ));
+      actions.add(RowAction(
+        text: "Delete Permanently",
+        isDestructive: true,
+        onTap: () {
+          controller.onDeletePermanentlyTap(post);
+        },
+      ));
+    }
+    final List<Widget> list = [];
+    for (int i = 0; i < actions.length; i++) {
+      final action = actions[i];
+      final isLast = i == actions.length - 1;
+      final List<Widget> children = [
+        if (!action.isDestructive)
+          LinkTextBlue(
+            action.text,
+            onTap: action.onTap,
+          ),
+        if (action.isDestructive)
+          LinkTextRed(
+            action.text,
+            underline: false,
+            fontWeight: FontWeight.w400,
+            onTap: action.onTap,
+          ),
+        if (!isLast) ...[
+          SizedBox(
+            width: 4,
+          ),
+          Text(
+            "|",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w100,
+              fontFamily: 'System',
+            ),
+          ),
+          SizedBox(width: 4),
+        ]
+      ];
+      list.addAll(children);
+    }
+    return Wrap(
+      children: list,
+    );
+  }
+
+  String _statusNoPostText() {
+    final status = controller.postStatusFilter;
+    final postViewModel = controller.postViewModels
+        .firstWhereOrNull((element) => element.status == status);
+    if (postViewModel == null || status == null) {
+      return "";
+    }
+    return " in ${postViewModel.text}";
+  }
+
+  String _getPostStatusInlineText(Post post) {
+    final postViewModel = controller.postViewModels
+        .firstWhereOrNull((element) => element.status == post.status);
+    if (postViewModel == null) {
+      // This should never happen
+      return "";
+    }
+    return postViewModel.text;
+  }
+}
+
+class ActionRowWidget extends StatelessWidget {
+  const ActionRowWidget({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return const Placeholder();
   }
 }

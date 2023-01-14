@@ -7,6 +7,7 @@ import 'package:flutter_press/admin_layout.dart';
 import 'package:flutter_press/model/new_post_payload.dart';
 import 'package:flutter_press/model/post.dart';
 import 'package:flutter_press/model/post_status.dart';
+import 'package:flutter_press/model/post_status_payload.dart';
 import 'package:flutter_press/services/api_service.dart';
 import 'package:flutter_press/services/navigator.dart';
 import 'package:flutter_press/widgets/filled_button.dart';
@@ -30,11 +31,13 @@ class AdminPostNewController {
 
   Post? post;
 
+  bool get isEditing => post != null;
+
   void attach(AdminPostNewState adminPostNewState) {
     view = adminPostNewState;
   }
 
-  void init() {
+  void postInit() {
     final param = NavigationService.instance.currentRouteItem.queryParamMap;
     final postId = param[AdminPostNew.paramPostId];
     print("init postId: $postId");
@@ -49,7 +52,7 @@ class AdminPostNewController {
     final newPost = NewPostPayload(
       title: titleController.text,
       content: json.encode(editorController.document.toDelta().toJson()),
-      status: PostStatus.publish,
+      status: PostStatus.published,
     );
     isLoading = true;
     view.applyState();
@@ -86,6 +89,20 @@ class AdminPostNewController {
     );
     view.applyState();
   }
+
+  Future<void> moveToTrash() async {
+    print("moveToTrash tapped");
+    final post = this.post;
+    if (post == null) {
+      return;
+    }
+    final updateStatusPayload = PostStatusPayload(
+      status: PostStatus.trash,
+      id: post.id,
+    );
+    await ApiService().updatePostStatus(updateStatusPayload);
+    NavigationService.instance.goTo("All Posts");
+  }
 }
 
 class AdminPostNew extends StatefulWidget {
@@ -105,7 +122,7 @@ class AdminPostNewState extends State<AdminPostNew> {
 
     //  post frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.init();
+      controller.postInit();
     });
   }
 
@@ -407,7 +424,14 @@ class AdminPostNewState extends State<AdminPostNew> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        LinkTextRed("Move to Trash"),
+                                        controller.isEditing
+                                            ? LinkTextRed(
+                                                "Move to Trash",
+                                                onTap: controller.moveToTrash,
+                                              )
+                                            : SizedBox(
+                                                height: 32,
+                                              ),
                                       ],
                                     ),
                                   ),

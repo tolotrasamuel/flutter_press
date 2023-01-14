@@ -1,5 +1,6 @@
 //json_serializable
 import 'package:flutter_press/model/post_status.dart';
+import 'package:flutter_press/model/post_visibility.dart';
 import 'package:flutter_press/utils/extensions.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:json_annotation/json_annotation.dart';

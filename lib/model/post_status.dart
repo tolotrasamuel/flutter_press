@@ -1,6 +1,8 @@
 enum PostStatus {
+  published,
+  scheduled,
   draft,
   pending,
   private,
-  publish,
+  trash,
 }

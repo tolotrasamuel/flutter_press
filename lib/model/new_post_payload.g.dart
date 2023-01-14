@@ -20,8 +20,10 @@ Map<String, dynamic> _$$_NewPostPayloadToJson(_$_NewPostPayload instance) =>
     };
 
 const _$PostStatusEnumMap = {
+  PostStatus.published: 'published',
+  PostStatus.scheduled: 'scheduled',
   PostStatus.draft: 'draft',
   PostStatus.pending: 'pending',
   PostStatus.private: 'private',
-  PostStatus.publish: 'publish',
+  PostStatus.trash: 'trash',
 };
