@@ -54,7 +54,7 @@ class PianoTile extends RectangleComponent {
 
   void recolor() {
     final eventDown = this.eventDown;
-    final eventUp = this.eventDown;
+    final eventUp = this.eventUp;
     if (eventDown == null) {
       return;
     }
@@ -68,7 +68,7 @@ class PianoTile extends RectangleComponent {
     if (eventUp != null && eventUp.played) {
       paint = PianoKey.grey;
     } else if (eventDown.played) {
-      paint = PianoKey.yellow;
+      paint = PianoKey.lightPink;
     } else {
       paint = defaultPaint;
     }

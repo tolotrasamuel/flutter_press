@@ -20,6 +20,7 @@ class PianoKey extends RectangleComponent with TapCallbacks, DragCallbacks {
   static Paint black = BasicPalette.black.paint();
   static Paint grey = BasicPalette.gray.paint();
   static Paint yellow = BasicPalette.yellow.paint();
+  static Paint lightPink = BasicPalette.lightPink.paint();
   final String note;
   final bool isWhite;
   PianoTile? tile;

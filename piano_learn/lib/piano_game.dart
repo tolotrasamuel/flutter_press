@@ -82,6 +82,7 @@ class MyGame extends FlameGame
       PianoMode.practiceRecord,
     }.contains(pianoMode)) {
       time += dt;
+      gameTime += dt;
       timeText.text = "Time: ${time.toStringAsFixed(2)}";
     }
     if (isPlayVariant) {
@@ -116,9 +117,11 @@ class MyGame extends FlameGame
     PianoEvent(note: "E", octave: 4, time: 2.1, tapDown: true),
     PianoEvent(note: "E", octave: 4, time: 2.6, tapDown: false),
   ];
+
   void onEvent(bool tapDown, String pitch, int octave) {
     print(
         "notifyTap parent, $pitch, $tapDown, $octave, $time, $pianoMode, $hashCode");
+
     final pianoEvent = PianoEvent(
       time: time,
       tapDown: tapDown,
@@ -129,11 +132,16 @@ class MyGame extends FlameGame
       recordTouchEvent(pianoEvent);
     }
     if (pianoMode == PianoMode.practiceRecord) {
+      print("event: $pianoEvent started");
       practiceTouchEvent(pianoEvent);
+      print("event: $pianoEvent ended");
     }
   }
 
   double time = 0;
+  double graceDeadline = double.infinity;
+  double gameTime = 0;
+  DateTime startTime = DateTime.now();
   PianoMode pianoMode = PianoMode.freePlay;
   AudioPlayer player = AudioPlayer();
   // I don't know why the audio lagging or the tile are too fast
@@ -167,11 +175,24 @@ class MyGame extends FlameGame
 
   void startPlayBack() {
     time = -viewPortDuration;
+    gameTime = 0;
+    graceDeadline = double.infinity;
+    startTime = DateTime.now();
     newestNoteOnViewPort = 0;
   }
 
+  void stopPractice() {
+    for (final note in practiceRecording) {
+      note.played = false;
+    }
+    endRecordPlayback();
+  }
+
   void endRecordPlayback() {
+    print("end record playback");
     pianoMode = PianoMode.freePlay;
+    final timeDrift = measureTimeDrift();
+    print("timeDrift $timeDrift");
     time = 0;
     newestNoteOnViewPort = 0;
   }
@@ -200,13 +221,17 @@ class MyGame extends FlameGame
   }
 
   void gameOver() {
+    final oldTime = time;
     time -= rewindGameOver;
     time = max(time, -viewPortDuration);
-
+    graceDeadline = time + gracePeriod;
+    print("returning to time $time from oldTime $oldTime");
+    print("Your sequence: \n${notePlayedSequence.join("\n")}");
+    notePlayedSequence.clear();
     rewindMusic();
     rewindTileViewPort();
 
-    rewindPlayedNotes();
+    rewindPlayedNotes(oldTime);
 
     print(
         "game over, back to $time and newestNoteOnViewPort $newestNoteOnViewPort and lastNotePlayed $lastNotePlayed");
@@ -237,35 +262,103 @@ class MyGame extends FlameGame
     key.play(note);
   }
 
-  final tolerance = 0.25;
+  final tolerance = 0.55;
 
+  List<PianoEvent> pianoEventQueue = [];
+
+  void practiceTouchEventOrchestrator(PianoEvent pianoEvent) {
+    pianoEventQueue.add(pianoEvent);
+    notifyNewTask();
+  }
+
+  List<PianoEvent> notePlayedSequence = [];
   void practiceTouchEvent(PianoEvent pianoEvent) {
     final pitch = pianoEvent.note;
     final octave = pianoEvent.octave;
     final tapDown = pianoEvent.tapDown;
+    int? beforeOldestUnplayedIndex;
+    if (graceDeadline != double.infinity && time < graceDeadline) {
+      print("grace period");
+      return;
+    }
+    notePlayedSequence.add(pianoEvent);
     for (int i = lastNotePlayed + 1; i < practiceRecording.length; i++) {
       final note = practiceRecording[i];
-      final tooLateOrWrong = time > note.time + tolerance;
-      final tooFast = time + tolerance < note.time;
-      if (tooLateOrWrong || tooFast) {
+      final isMissedNote = note.time < time - tolerance; // a missed note
+
+      // this note is outside the tolerance window in the future zone, which is not a problem
+      // but the fact that code reached here means that no note is found in the tolerance window
+      // so user type wrong note.
+      final noNoteFoundInToleranceWindow = time + tolerance < note.time;
+      //   [ Future ]
+      //   [ noNoteFound = means wrong note] => Game over
+      //   [ acceptable earliness] => ok
+      //   [ now ]
+      //   [ acceptable lateness] => ok
+      //   [ a missed note found ] => Game over
+      //   [ Past ]
+      if (isMissedNote || noNoteFoundInToleranceWindow) {
         // game over
+        final timeDrift = measureTimeDrift();
+        print("timeDrift $timeDrift");
         print("GAME OVER, wrong note, $note, $time");
         gameOver();
         break;
       }
-      if (note.time < time - tolerance) {
-        continue;
-      }
+
+      // by the time code reaches here, the current note in the loop is found in the tolerance window
+      // however, we still need to check if it is the correct note touched
+      // if not correct, it's ok, we just skip it and check the next note
       final correct = note.note == pitch &&
           note.octave == octave &&
           note.tapDown == tapDown;
       if (!correct) {
+        // we are assiging only once because we want to keep the oldest unplayed note
+        // and the recording is sorted by time
+        // consider the following case
+        // [A0, B1, C1, D2]
+        // A0 is played at time 0
+        // Then C1 is played before
+        // oldestUnplayed is C1, and before it is A0
+        beforeOldestUnplayedIndex ??= i - 1;
         continue;
       }
+
+      // by the time code reaches here, the current note in the loop is found in the tolerance window
+      // and is correct
       final error = (time - note.time);
       note.played = true;
       recolorTileOf(note);
-      lastNotePlayed = i;
+      // some notes in the tolerance window may have been skipped before reaching this correct one
+      lastNotePlayed = (beforeOldestUnplayedIndex) ?? i;
+      if (beforeOldestUnplayedIndex != null) {
+        lastNotePlayed = beforeOldestUnplayedIndex;
+      } else {
+        // we know that i is played, but are not sure if the note after is unplayed.
+        // so we need to check if the note after is unplayed until we find one
+        // [A0, B1, C1, D2]
+        // [PA0, B1, C1, D2]
+        // [PA0, B1, PC1, D2]
+        // [PA0, *PB1*, PC1, D2] => lastNotePlayed = is PB1 which is i in this context,
+        // but we need to check if the note after is unplayed, so we traverse until we find
+        // D2 which is unplayed, so lastNotePlayed = PC1 (one before it)
+        // this is complex but very efficient, especially since we dealing with a game frame
+
+        for (int j = i + 1; j <= practiceRecording.length; j++) {
+          if (j == practiceRecording.length) {
+            lastNotePlayed = j - 1;
+            // we are at the end of the recording, so we are done. Congrats!
+            break;
+          }
+          final note = practiceRecording[j];
+          if (note.played) {
+            continue;
+          }
+          lastNotePlayed = j - 1;
+          break;
+        }
+      }
+
       print("correct, error: $error");
       break;
     }
@@ -275,12 +368,13 @@ class MyGame extends FlameGame
       recordings.where((element) => element.channel == 1).toList();
   void handlePracticeRecordUpdate(double dt) {
     final nextNoteToPlay = lastNotePlayed + 1;
-    if (nextNoteToPlay == practiceRecording.length) {
+    final hasPlayedAllNotes = nextNoteToPlay == practiceRecording.length;
+    if (hasPlayedAllNotes) {
       print("Congratulations, you finished the song!");
       return;
     }
     final note = practiceRecording[nextNoteToPlay];
-    final isNoteMissed = time > note.time + tolerance;
+    final isNoteMissed = note.time < time - tolerance;
     if (isNoteMissed) {
       print("GAME OVER, you missed a note");
       gameOver();
@@ -392,15 +486,27 @@ class MyGame extends FlameGame
   }
 
   int rewindGameOver = 10;
-  int rewindNotesSec = 5;
+  int gracePeriod = 5;
 
-  void rewindPlayedNotes() {
-    if (rewindNotesSec > rewindGameOver) {
+  void rewindPlayedNotes(double oldTime) {
+    if (gracePeriod > rewindGameOver) {
       throw Exception("rewindNotesSec must be greater than rewindGameOver");
     }
-    for (int i = lastNotePlayed; i >= 0; i--) {
-      final note = recordings[i];
-      if (time + rewindNotesSec < note.time) {
+    printThrottle("rewinding played notes from $lastNotePlayed");
+
+    // lastNotePlayed was designed to be the marker where there is the oldest unplated note
+    // it was designed for game over scenario
+    // so we need to loop forward and backward the lastNotePlayed position to reset all notes
+    // it is safe to assume as of now that no note was played beyound the old_time
+
+    final lastNoteIndexPlayed = lastNotePlayed;
+    //from lastNoteIndexPlayed to new Time (and taking this opportunity to mark the new
+    //lastNotePlayed cursor)
+
+    for (int i = lastNoteIndexPlayed; i >= 0; i--) {
+      final note = practiceRecording[i];
+      final noteIsNotBeforeNewTime = time <= note.time;
+      if (noteIsNotBeforeNewTime) {
         note.played = false;
         recolorTileOf(note);
         lastNotePlayed = i - 1;
@@ -408,5 +514,37 @@ class MyGame extends FlameGame
         break;
       }
     }
+
+    // from lastNoteIndexPlayed+1 to old_time
+    for (int i = lastNoteIndexPlayed + 1; i < practiceRecording.length; i++) {
+      final note = practiceRecording[i];
+      final notIsNotBeyondOldTime = note.time <= oldTime;
+      if (notIsNotBeyondOldTime) {
+        note.played = false;
+        recolorTileOf(note);
+      } else {
+        break;
+      }
+    }
+    print(
+        "rewind to lastNoteIndexPlayed: $lastNotePlayed from $lastNoteIndexPlayed");
   }
+
+  double lastPrintTime = 0;
+  void printThrottle(String message) {
+    if (time - lastPrintTime > 1) {
+      print(message);
+      lastPrintTime = time;
+    }
+  }
+
+  double measureTimeDrift() {
+    final timeLapse =
+        DateTime.now().difference(startTime).inMilliseconds / 1000;
+    final timeDrift = timeLapse - gameTime;
+    print("game over, time drift $timeDrift");
+    return timeDrift;
+  }
+
+  void notifyNewTask() {}
 }

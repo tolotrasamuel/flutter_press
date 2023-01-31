@@ -241,7 +241,7 @@ class _PianoAppState extends State<PianoApp> {
                         child: Text("Stop Practice"),
                         onPressed: () {
                           print("pressed");
-                          game.endRecordPlayback();
+                          game.stopPractice();
                           player.stop();
                           setState(() {});
                         },
