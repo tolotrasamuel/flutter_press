@@ -32,13 +32,19 @@ class MyGame extends FlameGame
   final String startNote;
   final int middleCOctaveFromLeft;
   final VoidCallback updateFlutter;
+  Paint get tapDownColor => isGracePeriod ? PianoKey.grey : PianoKey.red;
+
+  bool get isGracePeriod => time < graceDeadline;
+
+  static const double penalty = 10.0;
+  static const double gracePeriod = 5.0;
   MyGame({
     this.keyCounts = 61,
     this.startNote = "C",
     this.middleCOctaveFromLeft = 2,
     required this.updateFlutter,
   });
-  final notes = [
+  static const notes = [
     "C",
     "C#",
     "D",
@@ -73,6 +79,7 @@ class MyGame extends FlameGame
 
   int newestNoteOnViewPort = 0;
   int lastNotePlayed = -1;
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -83,7 +90,13 @@ class MyGame extends FlameGame
     }.contains(pianoMode)) {
       time += dt;
       gameTime += dt;
-      timeText.text = "Time: ${time.toStringAsFixed(2)}";
+      late final String suffix;
+      if (isGracePeriod) {
+        suffix = " *";
+      } else {
+        suffix = "";
+      }
+      timeText.text = "Time: ${time.toStringAsFixed(2)}$suffix";
     }
     if (isPlayVariant) {
       handlePlayVariantUpdate(dt);
@@ -139,7 +152,8 @@ class MyGame extends FlameGame
   }
 
   double time = 0;
-  double graceDeadline = double.infinity;
+  double oldTime = 0;
+  double graceDeadline = -double.infinity;
   double gameTime = 0;
   DateTime startTime = DateTime.now();
   PianoMode pianoMode = PianoMode.freePlay;
@@ -176,7 +190,8 @@ class MyGame extends FlameGame
   void startPlayBack() {
     time = -viewPortDuration;
     gameTime = 0;
-    graceDeadline = double.infinity;
+    graceDeadline = -double.infinity;
+    oldTime = 0;
     startTime = DateTime.now();
     newestNoteOnViewPort = 0;
   }
@@ -185,6 +200,7 @@ class MyGame extends FlameGame
     for (final note in practiceRecording) {
       note.played = false;
     }
+    graceDeadline = -double.infinity;
     endRecordPlayback();
   }
 
@@ -195,6 +211,10 @@ class MyGame extends FlameGame
     print("timeDrift $timeDrift");
     time = 0;
     newestNoteOnViewPort = 0;
+
+    for (final key in pianoKeys) {
+      key.tile?.pressed = false;
+    }
   }
 
   // weird offset
@@ -221,7 +241,7 @@ class MyGame extends FlameGame
   }
 
   void gameOver() {
-    final oldTime = time;
+    oldTime = time;
     time -= rewindGameOver;
     time = max(time, -viewPortDuration);
     graceDeadline = time + gracePeriod;
@@ -262,6 +282,7 @@ class MyGame extends FlameGame
     key.play(note);
   }
 
+  // both positive and negative, so times two in total around the midpoint
   final tolerance = 0.55;
 
   List<PianoEvent> pianoEventQueue = [];
@@ -277,10 +298,7 @@ class MyGame extends FlameGame
     final octave = pianoEvent.octave;
     final tapDown = pianoEvent.tapDown;
     int? beforeOldestUnplayedIndex;
-    if (graceDeadline != double.infinity && time < graceDeadline) {
-      print("grace period");
-      return;
-    }
+
     notePlayedSequence.add(pianoEvent);
     for (int i = lastNotePlayed + 1; i < practiceRecording.length; i++) {
       final note = practiceRecording[i];
@@ -299,6 +317,10 @@ class MyGame extends FlameGame
       //   [ Past ]
       if (isMissedNote || noNoteFoundInToleranceWindow) {
         // game over
+        if (time < graceDeadline) {
+          print("grace period practiceTouchEvent");
+          return;
+        }
         final timeDrift = measureTimeDrift();
         print("timeDrift $timeDrift");
         print("GAME OVER, wrong note, $note, $time");
@@ -364,8 +386,9 @@ class MyGame extends FlameGame
     }
   }
 
-  List<PianoEvent> get practiceRecording =>
-      recordings.where((element) => element.channel == 1).toList();
+  // List<PianoEvent> get practiceRecording =>
+  //     recordings.where((element) => element.channel == 0).toList();
+  List<PianoEvent> get practiceRecording => recordings;
   void handlePracticeRecordUpdate(double dt) {
     final nextNoteToPlay = lastNotePlayed + 1;
     final hasPlayedAllNotes = nextNoteToPlay == practiceRecording.length;
@@ -374,6 +397,14 @@ class MyGame extends FlameGame
       return;
     }
     final note = practiceRecording[nextNoteToPlay];
+    final pianokey = pianoKeys[noteToIndex(note.note, note.octave)];
+
+    if (isGracePeriod) {
+      // this will notify the player that the game resume here
+      pianokey.tile?.paint = PianoKey.yellow;
+      return;
+    }
+    // pianokey.endGraceMode();
     final isNoteMissed = note.time < time - tolerance;
     if (isNoteMissed) {
       print("GAME OVER, you missed a note");
@@ -485,13 +516,9 @@ class MyGame extends FlameGame
     }
   }
 
-  int rewindGameOver = 10;
-  int gracePeriod = 5;
+  double get rewindGameOver => penalty;
 
   void rewindPlayedNotes(double oldTime) {
-    if (gracePeriod > rewindGameOver) {
-      throw Exception("rewindNotesSec must be greater than rewindGameOver");
-    }
     printThrottle("rewinding played notes from $lastNotePlayed");
 
     // lastNotePlayed was designed to be the marker where there is the oldest unplated note
@@ -499,17 +526,17 @@ class MyGame extends FlameGame
     // so we need to loop forward and backward the lastNotePlayed position to reset all notes
     // it is safe to assume as of now that no note was played beyound the old_time
 
-    final lastNoteIndexPlayed = lastNotePlayed;
+    int lastNoteIndexPlayed = lastNotePlayed;
     //from lastNoteIndexPlayed to new Time (and taking this opportunity to mark the new
     //lastNotePlayed cursor)
-
+    int firstNoteAfterRewind = lastNotePlayed;
     for (int i = lastNoteIndexPlayed; i >= 0; i--) {
       final note = practiceRecording[i];
-      final noteIsNotBeforeNewTime = time <= note.time;
+      final noteIsNotBeforeNewTime = time < note.time;
       if (noteIsNotBeforeNewTime) {
         note.played = false;
         recolorTileOf(note);
-        lastNotePlayed = i - 1;
+        firstNoteAfterRewind = i;
       } else {
         break;
       }
@@ -526,6 +553,7 @@ class MyGame extends FlameGame
         break;
       }
     }
+    decideGameOverLastPlayedNote(firstNoteAfterRewind);
     print(
         "rewind to lastNoteIndexPlayed: $lastNotePlayed from $lastNoteIndexPlayed");
   }
@@ -547,4 +575,33 @@ class MyGame extends FlameGame
   }
 
   void notifyNewTask() {}
+
+  void decideGameOverLastPlayedNote(int firstNoteAfterRewind) {
+    if (firstNoteAfterRewind == -1) {
+      lastNotePlayed = -1;
+      return;
+    }
+
+    // now calculating the tile to resume the game, it should be the first one after the [grace period + tolerance offset ] - penalty
+    for (int i = firstNoteAfterRewind; i < practiceRecording.length; i++) {
+      final note = practiceRecording[i];
+
+      // note should be a touch down note, otherwise, it will be impossible to play it
+      if (!note.tapDown) continue;
+      final isNoteAfterGracePeriodAndTolerance =
+          (time + gracePeriod + tolerance) < note.time;
+      if (!isNoteAfterGracePeriodAndTolerance) continue;
+      // there is a rare edge case to handle here where the last note in the music sheet
+      // is a a touch up and it is the only one satsisfying the above time window
+      // it should be more complex to handle this edge case, so we will just ignore it for now
+      if (i == practiceRecording.length - 1) {
+        lastNotePlayed = i - 2;
+        break;
+      }
+      lastNotePlayed = i - 1;
+      break;
+    }
+
+    graceDeadline = practiceRecording[lastNotePlayed + 1].time - tolerance;
+  }
 }

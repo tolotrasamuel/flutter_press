@@ -29,6 +29,9 @@ class PianoKey extends RectangleComponent with TapCallbacks, DragCallbacks {
   static Paint purple = BasicPalette.purple.paint();
 
   static Paint green = BasicPalette.green.paint();
+
+  static Paint pink = BasicPalette.pink.paint();
+
   PianoKey({
     required double width,
     required double height,
@@ -65,8 +68,12 @@ class PianoKey extends RectangleComponent with TapCallbacks, DragCallbacks {
   }
 
   void onKeyboardTapDown() {
+    final parent = this.parent;
+    if (parent is! MyGame) {
+      return;
+    }
     print("tap down, $note");
-    paint = red;
+    paint = parent.tapDownColor;
     updateTileFromTouch(true);
     notifyTap(true);
   }
@@ -148,4 +155,26 @@ class PianoKey extends RectangleComponent with TapCallbacks, DragCallbacks {
     tile?.removeFromParent();
     tile = null;
   }
+
+  // void engageGraceMode() {
+  //   if (_isGraceMode) {
+  //     return;
+  //   }
+  //   print("Engaging grace mode");
+  //   _isGraceMode = true;
+  //
+  //   tile?.paint = PianoKey.red;
+  //   tapDownColor = PianoKey.grey;
+  //   paint = tapDownColor;
+  // }
+
+  // void endGraceMode() {
+  //   if (!_isGraceMode) {
+  //     return;
+  //   }
+  //   _isGraceMode = false;
+  //   // tile?.recolor();
+  //   tapDownColor = PianoKey.red;
+  //   paint = tapDownColor;
+  // }
 }
