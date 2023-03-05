@@ -1,4 +1,0 @@
-I/flutter (25188): PianoEvent(time: 7.2753912857142815, tapDown: true, note: C#, octave: 4, channel: 0)
-I/flutter (25188): PianoEvent(time: 8.026976285714282, tapDown: true, note: D, octave: 4, channel: 0)
-I/flutter (25188): PianoEvent(time: 7.19246328571428, tapDown: true, note: C#, octave: 4, channel: 0)
-I/flutter (25188): PianoEvent(time: 7.960719285714281, tapDown: true, note: D, octave: 4, channel: 0)
