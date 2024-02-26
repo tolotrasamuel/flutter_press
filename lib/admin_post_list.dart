@@ -88,6 +88,7 @@ class AdminPostListController {
       print('Error $e');
       showDialog(context: view.context, builder: (context) => Text('Error $e'));
     });
+
     this.postsCount = postsCount;
     for (final postCountItem in postViewModels) {
       switch (postCountItem.status) {

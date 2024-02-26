@@ -6,6 +6,8 @@ import 'package:flutter_press/model/post_count.dart';
 import 'package:flutter_press/model/post_status.dart';
 import 'package:flutter_press/model/post_status_payload.dart';
 import 'package:flutter_press/model/posts_read_payload.dart';
+
+// import 'package:http/http.dart' as http;
 import 'package:http/http.dart' as http;
 
 class ApiService {
@@ -41,6 +43,17 @@ class ApiService {
   }
 
   Future<PostCount> fetchPostsCount() async {
+    return PostCount(
+      published: 1,
+      draft: 1,
+      private: 1,
+      pending: 1,
+
+      // total: 2,
+    );
+  }
+
+  Future<PostCount> fetchPostsCountServer() async {
     const url = '$_baseUrl$_readPostsCount';
 
     final uri = Uri.parse(url);
@@ -60,6 +73,23 @@ class ApiService {
   }
 
   Future<List<Post>> readAllPosts({
+    required PostStatus? postStatus,
+  }) async {
+    return [
+      Post(
+        id: "1",
+        title: "Post 1",
+        author: "Author 1",
+        content: "Content 1",
+        status: PostStatus.published,
+        createdDate: DateTime.now().toIso8601String(),
+        updatedDate: DateTime.now().toIso8601String(),
+        publishedDate: DateTime.now().toIso8601String(),
+      ),
+    ];
+  }
+
+  Future<List<Post>> readAllPostsServer({
     required PostStatus? postStatus,
   }) async {
     const url = '$_baseUrl$_readPosts';
@@ -164,23 +194,23 @@ class ApiService {
     }
   }
 
-  // Future<List<Post>> getPosts() async {
-  //   final response = await http.get(_baseUrl + _posts);
-  //   if (response.statusCode == 200) {
-  //     final List<dynamic> posts = json.decode(response.body);
-  //     return posts.map((post) => Post.fromJson(post)).toList();
-  //   } else {
-  //     throw Exception('Failed to load posts');
-  //   }
-  // }
-  //
-  // Future<List<Comment>> getComments(int postId) async {
-  //   final response = await http.get(_baseUrl + _posts + '/$postId' + _comments);
-  //   if (response.statusCode == 200) {
-  //     final List<dynamic> comments = json.decode(response.body);
-  //     return comments.map((comment) => Comment.fromJson(comment)).toList();
-  //   } else {
-  //     throw Exception('Failed to load comments');
-  //   }
-  // }
+// Future<List<Post>> getPosts() async {
+//   final response = await http.get(_baseUrl + _posts);
+//   if (response.statusCode == 200) {
+//     final List<dynamic> posts = json.decode(response.body);
+//     return posts.map((post) => Post.fromJson(post)).toList();
+//   } else {
+//     throw Exception('Failed to load posts');
+//   }
+// }
+//
+// Future<List<Comment>> getComments(int postId) async {
+//   final response = await http.get(_baseUrl + _posts + '/$postId' + _comments);
+//   if (response.statusCode == 200) {
+//     final List<dynamic> comments = json.decode(response.body);
+//     return comments.map((comment) => Comment.fromJson(comment)).toList();
+//   } else {
+//     throw Exception('Failed to load comments');
+//   }
+// }
 }

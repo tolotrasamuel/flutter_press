@@ -29,6 +29,7 @@ migrate_working_dir/
 .packages
 build/
 flutter_sdk/
-.fvm/flutter_sdk/
-.fvm/**
 example/.fvm/**
+
+# FVM Version Cache
+.fvm/

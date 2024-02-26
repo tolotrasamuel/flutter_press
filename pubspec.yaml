@@ -1,20 +1,23 @@
 name: flutter_press
 description: A new Flutter package project.
 version: 0.0.1
-homepage:
+homepage: flutterpress.tolotra.com
 
 environment:
-  sdk: '>=2.18.6 <3.0.0'
-  flutter: ">=1.17.0"
+  sdk: '>=3.2.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  flutter_quill: ^6.1.12
-  flutter_quill_extensions: ^0.1.0
+  flutter_quill: 9.2.10
+#  flutter_quill_extensions: 9.2.10
   path_provider: ^2.0.11
   freezed_annotation: ^2.2.0
+  http: ^1.2.0
 
+#dependency_overrides:
+#  gal: ^2.3.0
+#  gal_linux: ^0.1.0
 
 dev_dependencies:
   flutter_test:

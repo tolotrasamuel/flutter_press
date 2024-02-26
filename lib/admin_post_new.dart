@@ -15,10 +15,8 @@ import 'package:flutter_press/widgets/link_text.dart';
 import 'package:flutter_press/widgets/outlined_button.dart';
 import 'package:flutter_press/widgets/publish_list_item.dart';
 import 'package:flutter_quill/flutter_quill.dart' hide Text;
-import 'package:flutter_quill_extensions/flutter_quill_extensions.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:tuple/tuple.dart';
 
 class AdminPostNewController {
   late AdminPostNewState view;
@@ -217,16 +215,23 @@ class AdminPostNewState extends State<AdminPostNew> {
                                 // scrollDirection: Axis.horizontal,
                                 child: Padding(
                                   padding:
-                                      const EdgeInsets.symmetric(vertical: 8.0),
-                                  child: QuillToolbar.basic(
-                                    toolbarIconAlignment: WrapAlignment.start,
-                                    multiRowsDisplay: true,
-                                    showIndent: true,
-                                    controller: controller.editorController,
-                                    showAlignmentButtons: true,
+                                  const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: QuillSimpleToolbar(
+                                    configurations: QuillSimpleToolbarConfigurations(
+                                      controller: controller.editorController,
+                                      multiRowsDisplay: true,
+                                      toolbarIconAlignment: WrapAlignment.start,
+                                      showIndent: true,
+                                      showAlignmentButtons: true,
+                                      sharedConfigurations: const QuillSharedConfigurations(
+
+                                      ),
+                                    ),
+
                                   ),
                                 ),
                               ),
+
                               // Quill editor
                               Column(
                                 mainAxisSize: MainAxisSize.min,
@@ -243,35 +248,39 @@ class AdminPostNewState extends State<AdminPostNew> {
                                         //   top: Radius.circular(4.0),
                                         // ),
                                       ),
-                                      child: QuillEditor(
-                                        controller: controller.editorController,
-                                        scrollController: scrollController,
-                                        scrollable: false,
-                                        focusNode: FocusNode(),
-                                        autoFocus: true,
-                                        readOnly: false,
-                                        minHeight: 300,
+                                      child: QuillEditor.basic(
+                                        configurations: QuillEditorConfigurations(
+                                          controller: controller.editorController,
+                                          readOnly: false,
+                                          scrollable: false,
+                                          // focusNode: FocusNode(),
+                                          autoFocus: true,
+                                          // readOnly: false,
+                                          minHeight: 300,
 
-                                        scrollBottomInset: 64,
-                                        expands: false,
-                                        padding: EdgeInsets.all(24),
-                                        keyboardAppearance: Brightness.light,
-                                        locale: null,
-                                        onImagePaste: _onImagePaste,
-                                        embedBuilders: [
-                                          ...FlutterQuillEmbeds.builders(),
-                                        ],
-                                        customStyles: DefaultStyles(
-                                          link: TextStyle()
-                                              .copyWith(color: Colors.blue),
-                                          paragraph: DefaultTextBlockStyle(
-                                            const TextStyle(),
-                                            const Tuple2(8, 16),
-                                            const Tuple2(0, 0),
-                                            null,
+                                          scrollBottomInset: 64,
+                                          expands: false,
+                                          padding: EdgeInsets.all(24),
+                                          keyboardAppearance: Brightness.light,
+                                          onImagePaste: _onImagePaste,
+                                          embedBuilders: [
+                                            // ...FlutterQuillEmbeds.builders(),
+                                          ],
+                                          customStyles: DefaultStyles(
+                                            link: TextStyle()
+                                                .copyWith(color: Colors.blue),
+                                            // paragraph: DefaultTextBlockStyle(
+                                            //   // const TextStyle(),
+                                            //   // const Tuple2(8, 16),
+                                            //   // const Tuple2(0, 0),
+                                            //   // null,
+                                            // ),
+                                          ),
+                                          sharedConfigurations: const QuillSharedConfigurations(
+                                            locale: Locale('de'),
+
                                           ),
                                         ),
-                                        // customStyles:
                                       ),
                                     ),
                                   ),
