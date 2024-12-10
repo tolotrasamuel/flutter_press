@@ -39,3 +39,9 @@ example/.fvm/**
 
 node_modules/
 
+
+.DS_Store
+.idea/workspace.xml
+.fvm/
+node_modules/
+
