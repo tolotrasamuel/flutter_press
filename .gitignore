@@ -32,4 +32,7 @@ flutter_sdk/
 example/.fvm/**
 
 # FVM Version Cache
+.fvm/.idea/workspace.xml
+
 .fvm/
+
