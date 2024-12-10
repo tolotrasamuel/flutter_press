@@ -36,3 +36,6 @@ example/.fvm/**
 
 .fvm/
 
+
+node_modules/
+
